@@ -5,10 +5,20 @@ try:
     from .im2col_cython import col2im_cython, im2col_cython
     from .im2col_cython import col2im_6d_cython
 except ImportError:
-    print("""=========== You can safely ignore the message below if you are NOT working on ConvolutionalNetworks.ipynb ===========""")
-    print("\tYou will need to compile a Cython extension for a portion of this assignment.")
-    print("\tThe instructions to do this will be given in a section of the notebook below.")
-    print("\tThere will be an option for Colab users and another for Jupyter (local) users.")
+    from .im2col import im2col_indices, col2im_indices
+
+    im2col_cython = im2col_indices
+
+    def col2im_cython(cols, n, c, h, w, kh, kw, pad, stride):
+        return col2im_indices(cols, (n, c, h, w), kh, kw, pad, stride)
+
+    def col2im_6d_cython(cols, n, c, h, w, kh, kw, pad, stride):
+        dxpad = np.zeros((n, c, h + 2 * pad, w + 2 * pad), dtype=cols.dtype)
+        oh, ow = cols.shape[-2:]
+        for i in range(kh):
+            for j in range(kw):
+                dxpad[:, :, i:i + stride * oh:stride, j:j + stride * ow:stride] += cols[:, i, j].transpose(1, 0, 2, 3)
+        return dxpad[:, :, pad:pad + h, pad:pad + w]
 
 from .im2col import *
 
@@ -67,13 +77,13 @@ def conv_forward_strides(x, w, b, conv_param):
     strides = x.itemsize * np.array(strides)
     x_stride = np.lib.stride_tricks.as_strided(x_padded, shape=shape, strides=strides)
     x_cols = np.ascontiguousarray(x_stride)
-    x_cols.shape = (C * HH * WW, N * out_h * out_w)
+    x_cols = x_cols.reshape(C * HH * WW, N * out_h * out_w)
 
     # Now all our convolutions are a big matrix multiply
     res = w.reshape(F, -1).dot(x_cols) + b.reshape(-1, 1)
 
     # Reshape the output
-    res.shape = (F, N, out_h, out_w)
+    res = res.reshape(F, N, out_h, out_w)
     out = res.transpose(1, 0, 2, 3)
 
     # Be nice and return a contiguous array
@@ -99,7 +109,7 @@ def conv_backward_strides(dout, cache):
     dw = dout_reshaped.dot(x_cols.T).reshape(w.shape)
 
     dx_cols = w.reshape(F, -1).T.dot(dout_reshaped)
-    dx_cols.shape = (C, HH, WW, N, out_h, out_w)
+    dx_cols = dx_cols.reshape(C, HH, WW, N, out_h, out_w)
     dx = col2im_6d_cython(dx_cols, N, C, H, W, HH, WW, pad, stride)
 
     return dx, dw, db

@@ -74,15 +74,12 @@ class TwoLayerNet(object):
         # Compute the forward pass
         scores = None
         #############################################################################
-        # TODO: Perform the forward pass, computing the class scores for the input. #
+        # Implementation: Perform the forward pass, computing the class scores for the input. #
         # Store the result in the scores variable, which should be an array of      #
         # shape (N, C).                                                             #
         #############################################################################
-        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
-
-        # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        hidden = np.maximum(0, X @ W1 + b1)
+        scores = hidden @ W2 + b2
 
         # If the targets are not given then jump out, we're done
         if y is None:
@@ -91,29 +88,31 @@ class TwoLayerNet(object):
         # Compute the loss
         loss = None
         #############################################################################
-        # TODO: Finish the forward pass, and compute the loss. This should include  #
+        # Implementation: Finish the forward pass, and compute the loss. This should include  #
         # both the data loss and L2 regularization for W1 and W2. Store the result  #
         # in the variable loss, which should be a scalar. Use the Softmax           #
         # classifier loss.                                                          #
         #############################################################################
-        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
-
-        # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        shifted = scores - scores.max(axis=1, keepdims=True)
+        log_probs = shifted - np.log(np.exp(shifted).sum(axis=1, keepdims=True))
+        loss = -log_probs[np.arange(N), y].mean() + reg * (np.sum(W1 ** 2) + np.sum(W2 ** 2))
 
         # Backward pass: compute gradients
         grads = {}
         #############################################################################
-        # TODO: Compute the backward pass, computing the derivatives of the weights #
+        # Implementation: Compute the backward pass, computing the derivatives of the weights #
         # and biases. Store the results in the grads dictionary. For example,       #
         # grads['W1'] should store the gradient on W1, and be a matrix of same size #
         #############################################################################
-        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
-
-        # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        dscores = np.exp(log_probs)
+        dscores[np.arange(N), y] -= 1
+        dscores /= N
+        grads['W2'] = hidden.T @ dscores + 2 * reg * W2
+        grads['b2'] = dscores.sum(axis=0)
+        dhidden = dscores @ W2.T
+        dhidden[hidden <= 0] = 0
+        grads['W1'] = X.T @ dhidden + 2 * reg * W1
+        grads['b1'] = dhidden.sum(axis=0)
 
         return loss, grads
 
@@ -139,7 +138,7 @@ class TwoLayerNet(object):
         - verbose: boolean; if true print progress during optimization.
         """
         num_train = X.shape[0]
-        iterations_per_epoch = max(num_train / batch_size, 1)
+        iterations_per_epoch = max(num_train // batch_size, 1)
 
         # Use SGD to optimize the parameters in self.model
         loss_history = []
@@ -151,36 +150,30 @@ class TwoLayerNet(object):
             y_batch = None
 
             #########################################################################
-            # TODO: Create a random minibatch of training data and labels, storing  #
+            # Implementation: Create a random minibatch of training data and labels, storing  #
             # them in X_batch and y_batch respectively.                             #
             #########################################################################
-            # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-            pass
-
-            # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+            indices = np.random.choice(num_train, batch_size, replace=True)
+            X_batch, y_batch = X[indices], y[indices]
 
             # Compute loss and gradients using the current minibatch
             loss, grads = self.loss(X_batch, y=y_batch, reg=reg)
             loss_history.append(loss)
 
             #########################################################################
-            # TODO: Use the gradients in the grads dictionary to update the         #
+            # Implementation: Use the gradients in the grads dictionary to update the         #
             # parameters of the network (stored in the dictionary self.params)      #
             # using stochastic gradient descent. You'll need to use the gradients   #
             # stored in the grads dictionary defined above.                         #
             #########################################################################
-            # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-            pass
-
-            # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+            for key in self.params:
+                self.params[key] -= learning_rate * grads[key]
 
             if verbose and it % 100 == 0:
                 print('iteration %d / %d: loss %f' % (it, num_iters, loss))
 
             # Every epoch, check train and val accuracy and decay learning rate.
-            if it % iterations_per_epoch == 0:
+            if (it + 1) % iterations_per_epoch == 0 or it == num_iters - 1:
                 # Check accuracy
                 train_acc = (self.predict(X_batch) == y_batch).mean()
                 val_acc = (self.predict(X_val) == y_val).mean()
@@ -214,12 +207,8 @@ class TwoLayerNet(object):
         y_pred = None
 
         ###########################################################################
-        # TODO: Implement this function; it should be VERY simple!                #
+        # Implementation: Implement this function; it should be VERY simple!                #
         ###########################################################################
-        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
-
-        # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        y_pred = np.argmax(self.loss(X), axis=1)
 
         return y_pred

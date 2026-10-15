@@ -47,7 +47,7 @@ class ThreeLayerConvNet(object):
         self.dtype = dtype
 
         ############################################################################
-        # TODO: Initialize weights and biases for the three-layer convolutional    #
+        # Implementation: Initialize weights and biases for the three-layer convolutional    #
         # network. Weights should be initialized from a Gaussian centered at 0.0   #
         # with standard deviation equal to weight_scale; biases should be          #
         # initialized to zero. All weights and biases should be stored in the      #
@@ -61,11 +61,15 @@ class ThreeLayerConvNet(object):
         # **the width and height of the input are preserved**. Take a look at      #
         # the start of the loss() function to see how that happens.                #
         ############################################################################
-        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
-
-        # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        c, h, w = input_dim
+        if filter_size % 2 != 1:
+            raise ValueError("Use an odd filter size for same padding")
+        self.params = {'W1': weight_scale * np.random.randn(num_filters, c, filter_size, filter_size),
+                       'b1': np.zeros(num_filters),
+                       'W2': weight_scale * np.random.randn(num_filters * (h // 2) * (w // 2), hidden_dim),
+                       'b2': np.zeros(hidden_dim),
+                       'W3': weight_scale * np.random.randn(hidden_dim, num_classes),
+                       'b3': np.zeros(num_classes)}
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -93,18 +97,17 @@ class ThreeLayerConvNet(object):
 
         scores = None
         ############################################################################
-        # TODO: Implement the forward pass for the three-layer convolutional net,  #
+        # Implementation: Implement the forward pass for the three-layer convolutional net,  #
         # computing the class scores for X and storing them in the scores          #
         # variable.                                                                #
         #                                                                          #
         # Remember you can use the functions defined in cs231n/fast_layers.py and  #
         # cs231n/layer_utils.py in your implementation (already imported).         #
         ############################################################################
-        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
-
-        # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        X = X.astype(self.dtype, copy=False)
+        h1, cache1 = conv_relu_pool_forward(X, W1, b1, conv_param, pool_param)
+        h2, cache2 = affine_relu_forward(h1, W2, b2)
+        scores, cache3 = affine_forward(h2, W3, b3)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -114,7 +117,7 @@ class ThreeLayerConvNet(object):
 
         loss, grads = 0, {}
         ############################################################################
-        # TODO: Implement the backward pass for the three-layer convolutional net, #
+        # Implementation: Implement the backward pass for the three-layer convolutional net, #
         # storing the loss and gradients in the loss and grads variables. Compute  #
         # data loss using softmax, and make sure that grads[k] holds the gradients #
         # for self.params[k]. Don't forget to add L2 regularization!               #
@@ -123,11 +126,13 @@ class ThreeLayerConvNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-        pass
-
-        # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+        loss, dscores = softmax_loss(scores, y)
+        loss += 0.5 * self.reg * sum(np.sum(w ** 2) for w in (W1, W2, W3))
+        dh2, grads['W3'], grads['b3'] = affine_backward(dscores, cache3)
+        dh1, grads['W2'], grads['b2'] = affine_relu_backward(dh2, cache2)
+        _, grads['W1'], grads['b1'] = conv_relu_pool_backward(dh1, cache1)
+        for i in (1, 2, 3):
+            grads['W%d' % i] += self.reg * self.params['W%d' % i]
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################

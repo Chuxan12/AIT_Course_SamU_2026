@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+build/
+*.so
+lab_3/scripts/im2col_cython.c

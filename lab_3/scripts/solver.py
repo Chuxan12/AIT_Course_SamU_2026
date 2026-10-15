@@ -7,6 +7,7 @@ from builtins import object
 import os
 import pickle as pickle
 
+import copy
 import numpy as np
 
 from scripts import optim
@@ -115,6 +116,7 @@ class Solver(object):
         - checkpoint_name: If not None, then save model checkpoints here every
           epoch.
         """
+        self.restore_best = kwargs.pop("restore_best", True)
         self.model = model
         self.X_train = data["X_train"]
         self.y_train = data["y_train"]
@@ -154,7 +156,8 @@ class Solver(object):
         """
         # Set up some variables for book-keeping
         self.epoch = 0
-        self.best_val_acc = 0
+        self.best_val_acc = -np.inf
+        self.best_bn_params = None
         self.best_params = {}
         self.loss_history = []
         self.train_acc_history = []
@@ -301,9 +304,13 @@ class Solver(object):
                 # Keep track of the best model
                 if val_acc > self.best_val_acc:
                     self.best_val_acc = val_acc
+                    self.best_bn_params = copy.deepcopy(getattr(self.model, "bn_params", None))
                     self.best_params = {}
                     for k, v in self.model.params.items():
                         self.best_params[k] = v.copy()
 
         # At the end of training swap the best params into the model
-        self.model.params = self.best_params
+        if self.restore_best:
+            self.model.params = self.best_params
+            if self.best_bn_params is not None:
+                self.model.bn_params = self.best_bn_params

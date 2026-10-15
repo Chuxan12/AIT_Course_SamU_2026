@@ -26,16 +26,21 @@ def softmax_loss_naive(W, X, y, reg):
     dW = np.zeros_like(W)
 
     #############################################################################
-    # TODO: Compute the softmax loss and its gradient using explicit loops.     #
+    # Implementation: Compute the softmax loss and its gradient using explicit loops.     #
     # Store the loss in loss and the gradient in dW. If you are not careful     #
     # here, it is easy to run into numeric instability. Don't forget the        #
     # regularization!                                                           #
     #############################################################################
-    # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
-    # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    for i in range(X.shape[0]):
+        scores = X[i] @ W
+        scores -= scores.max()
+        log_probs = scores - np.log(np.exp(scores).sum())
+        loss -= log_probs[y[i]]
+        probs = np.exp(log_probs)
+        for j in range(W.shape[1]):
+            dW[:, j] += (probs[j] - (j == y[i])) * X[i]
+    loss = loss / X.shape[0] + reg * np.sum(W * W)
+    dW = dW / X.shape[0] + 2 * reg * W
 
     return loss, dW
 
@@ -51,15 +56,17 @@ def softmax_loss_vectorized(W, X, y, reg):
     dW = np.zeros_like(W)
 
     #############################################################################
-    # TODO: Compute the softmax loss and its gradient using no explicit loops.  #
+    # Implementation: Compute the softmax loss and its gradient using no explicit loops.  #
     # Store the loss in loss and the gradient in dW. If you are not careful     #
     # here, it is easy to run into numeric instability. Don't forget the        #
     # regularization!                                                           #
     #############################################################################
-    # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
-
-    pass
-
-    # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
+    scores = X @ W
+    scores -= scores.max(axis=1, keepdims=True)
+    log_probs = scores - np.log(np.exp(scores).sum(axis=1, keepdims=True))
+    loss = -log_probs[np.arange(len(X)), y].mean() + reg * np.sum(W * W)
+    probs = np.exp(log_probs)
+    probs[np.arange(len(X)), y] -= 1
+    dW = X.T @ probs / len(X) + 2 * reg * W
 
     return loss, dW
